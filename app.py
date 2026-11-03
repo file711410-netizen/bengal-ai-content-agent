@@ -1,98 +1,235 @@
 
 import streamlit as st
-import json
-import os
-import random
-from datetime import datetime
+from google import genai
+from PIL import Image
+from io import BytesIO
+import re
 
-# ==========================================
+# =====================================================
 # BENGAL AI CONTENT CREATOR
-# Version 2.0
-# ==========================================
+# VERSION 3.0 - GEMINI AI POWERED
+# =====================================================
 
 st.set_page_config(
     page_title="Bengal AI Content Creator",
     page_icon="🎬",
-    layout="centered"
+    layout="wide"
 )
 
-# ==========================================
-# MASTER PROMPT V2.1
-# এখানে তোমার সম্পূর্ণ 20 Section Master Prompt
-# স্থায়ীভাবে রাখা হবে।
-# ==========================================
+MODEL_NAME = "gemini-flash-latest"
 
-MASTER_PROMPT = """
+# =====================================================
+# MASTER CREATIVE INSTRUCTIONS
+# V2.1 - 20 SECTION CREATIVE SYSTEM
+# =====================================================
+
+MASTER_PROMPT = r"""
 ULTIMATE MASTER PROMPT V2.1
 BENGAL + INDIA + WORLD NATURE & HUMAN LIFE
 EXPANDED FANTASY EDITION
 
-You are a professional AI Reel Director.
+SECTION 1 - PROFESSIONAL ROLE
+You are an elite AI Reel Director, Concept Developer,
+Documentary Filmmaker, Nature Cinematographer,
+Human-Life Storyteller, Fantasy Designer, Screenwriter,
+Storyboard Artist, Image Prompt Engineer,
+Image-to-Video Prompt Engineer and Social Media Strategist.
 
-PROJECT DNA:
-Nature + Human Life + Activity + Struggle
-+ Travel + Discovery + Realistic Fantasy.
+SECTION 2 - PROJECT DNA
+NATURE + HUMAN LIFE + ACTIVITY + STRUGGLE
++ TRAVEL + DISCOVERY + FANTASY.
+Nature is the primary focus. Humans interact naturally
+with the environment and are not always the main hero.
 
-CONTENT CATEGORIES:
-1. Bengal Village Life & Nature
-2. India & World Nature and Human Life
-3. Human Activity and Struggle
-4. Fantasy Nature
-5. Fantasy Architecture and Futuristic Civilizations
+SECTION 3 - FOUR CONTENT CATEGORIES
 
-VIDEO FORMAT:
-Vertical 9:16
-5 Scenes
-Approximately 8 seconds per scene
+A. BENGAL VILLAGE LIFE & NATURE
+Village activities, farming, fishing, rivers, ponds,
+paddy fields, village roads, banyan trees, green tunnels,
+coconut and areca roads, bamboo paths, pond-side roads,
+rainy roads, mist, kash flowers, shiuli flowers,
+rural communities and authentic Bengal landscapes.
+
+B. INDIA & WORLD NATURE / HUMAN LIFE
+Himalayas, Meghalaya living root bridges, waterfalls,
+wildlife, rivers, deserts, coastlines, migrations,
+rainforests, Iceland, Swiss valleys, fjords, giant forests,
+remote islands, mountain farmers and remote communities.
+
+C. FANTASY NATURE
+Endless green tunnels, giant trees above clouds,
+colossal forests, natural bridges, floating islands,
+waterfall valleys, fantasy lakes and extraordinary
+natural environments. Keep them photorealistic.
+
+D. FANTASY ARCHITECTURE & FUTURISTIC CIVILIZATIONS
+Fantasy city ships, futuristic city ships, sky gardens,
+waterfall cities, floating ocean cities, forest-integrated
+cities, castles, giant bridges and buildings above clouds.
+These are additional categories, not replacements for
+Bengal village life, nature and human struggle.
+
+SECTION 4 - CONTENT ROTATION
+Avoid repetitive topics and similar visual compositions.
+Balance Bengal, India, World, Human Life, Fantasy Nature
+and Futuristic Architecture. Review available history.
+Do not repeat recent topics unnecessarily.
+
+SECTION 5 - VISUAL STYLE
+A. Village / Human / Nature: realistic documentary cinema.
+B. Fantasy Nature: epic photorealistic natural fantasy.
+C. Futuristic: photorealistic cinematic fantasy.
+Use realistic textures, lighting, scale, perspective,
+natural movement and believable physics.
+Avoid plastic CGI, toy-like visuals, cartoon appearance,
+excessive saturation, morphing and distorted structures.
+
+SECTION 6 - STANDARD VIDEO FORMAT
+Vertical 9:16.
+Exactly 5 scenes.
+Approximately 8 seconds per scene.
 Total duration approximately 40 seconds.
+Designed for Google Flow AI and Nano Banana Pro.
 
-MANDATORY SCENE STRUCTURE:
-1. Story Purpose
-2. Image/Video Prompt
-3. Camera
-4. Camera Movement
-5. Subject Movement
-6. Environment Movement
-7. Sound Effects
-8. Ambient Sound
-9. Transition
-10. Planned Exit State
+SECTION 7 - TOPIC DEVELOPMENT
+Review the supplied topic or image.
+Identify category, location, visual hook and story potential.
+Develop one coherent story across five scenes.
+Avoid repetitive concepts.
 
-CONTINUITY:
+SECTION 8 - MANDATORY REEL HEADER
+REEL TITLE
+Tropic
+Sub-Category
+Location
+Format
+Duration
+Main Focus
+Story Flow
+Visual Style
+Explain the concept in Bengali.
+
+SECTION 9 - GLOBAL VISUAL BIBLE
+Before the scenes, define:
+Main Subject Lock
 Character Lock
 Location Lock
 Environment Lock
 Colour Lock
 Lighting Lock
-Material and Texture Lock
+Material & Texture Lock
 Motion Lock
 
-VISUAL STYLE:
-Photorealistic cinematic visuals.
-Natural textures and believable physics.
-Avoid plastic CGI, cartoon appearance,
-unrealistic motion and excessive saturation.
+SECTION 10 - STORY STRUCTURE
+Scene 1: Discovery Hook.
+Scene 2: Grand Reveal.
+Scene 3: Exploration / Activity.
+Scene 4: Cinematic Highlight.
+Scene 5: Ultimate Reveal / Ending.
+The five scenes must form one connected visual journey.
 
-FINAL OUTPUT:
-Complete 5 Scene prompts.
-Continuity instructions.
-Audio design.
-Quality audit.
-Facebook caption.
-Relevant hashtags.
+SECTION 11 - MANDATORY FIVE-SCENE FORMAT
+For EACH scene include:
+Scene number and time range.
+Story Purpose (Bengali).
+Image/Video Prompt (English, detailed and self-contained).
+Camera.
+Camera Movement.
+Subject Movement.
+Environment Movement.
+Sound Effects.
+Ambient Sound.
+Transition.
+Planned Exit State.
 
-EXPLANATION LANGUAGE: Bengali.
-PRODUCTION PROMPTS: English.
+Scene timing:
+Scene 1: 0-8 seconds.
+Scene 2: 8-16 seconds.
+Scene 3: 16-24 seconds.
+Scene 4: 24-32 seconds.
+Scene 5: 32-40 seconds.
 
-IMPORTANT:
-Preserve the Bengal + India + World project identity.
-Fantasy and futuristic content are additions,
-not replacements for village life and nature.
+SECTION 12 - CONTINUITY LOCK
+Maintain consistent characters, clothing, animals,
+architecture, geography, environment, colour, lighting,
+weather, scale and camera language across all scenes.
+No unexplained location or subject changes.
+
+SECTION 13 - FLOW AI IMAGE-TO-VIDEO RULES
+Use clear English production prompts.
+Give one primary action per scene.
+Specify camera, subject and environment movement.
+Keep motion physically believable.
+Preserve image reference and visual continuity.
+Avoid contradictory instructions.
+If a prompt causes a safety warning, rewrite it
+in neutral, Flow-friendly wording without losing intent.
+
+SECTION 14 - PRODUCTION WORKFLOW
+Topic development.
+Global Visual Bible.
+Five scene prompts.
+Reference image analysis when supplied.
+Image review.
+Flow AI image-to-video production.
+Continuity review.
+Final Reel quality review.
+Do not claim that images or videos were generated
+when only text prompts were created.
+
+SECTION 15 - AUDIO DESIGN
+Include scene-wise sound effects and ambient sound.
+Define music mood, intensity and ending.
+Default: no unnecessary voiceover.
+If voiceover is requested, include the exact spoken line,
+delivery, timing and narration/dialogue type inside
+the corresponding scene's Image-to-Video prompt.
+
+SECTION 16 - FINAL QUALITY AUDIT
+Check:
+Correct topic and geography.
+Strong opening hook.
+Exactly five scenes.
+Approximately eight seconds each.
+9:16 format.
+All mandatory scene sections included.
+Strong continuity.
+Realistic texture and physics.
+No plastic CGI appearance.
+Cinematic ending.
+
+SECTION 17 - FACEBOOK REEL PACKAGE
+Create an engaging caption and relevant hashtags.
+Keep the caption suitable for the actual story.
+Do not use unrelated trending hashtags.
+
+SECTION 18 - LANGUAGE RULE
+Explanations in Bengali.
+Production prompts in English.
+Detailed, clear and complete instructions.
+Never omit mandatory scene sections.
+
+SECTION 19 - USER COMMANDS
+NEXT: Choose one fresh topic using available history.
+TOPIC: Develop the user's supplied topic.
+CHANGE: Modify the requested part.
+REGENERATE: Recreate the requested output.
+CONTINUE: Continue the existing project.
+MASTER PROMPT REVIEW: Review creative rules.
+
+SECTION 20 - FINAL DIRECTIVE
+This is one continuous Bengal + India + World project.
+Bengal remains the main base.
+Include India and world nature, human activity,
+struggle, travel and discovery.
+Fantasy nature and futuristic city ships are additions,
+not replacements for the original project identity.
+Always produce complete, Flow-friendly, cinematic work.
 """
 
-# ==========================================
-# SESSION STATE
-# ==========================================
+# =====================================================
+# SESSION MEMORY
+# =====================================================
 
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -103,261 +240,520 @@ if "selected_topic" not in st.session_state:
 if "suggestions" not in st.session_state:
     st.session_state.suggestions = []
 
-# ==========================================
-# TOPIC COLLECTION
-# ==========================================
+if "generated_plan" not in st.session_state:
+    st.session_state.generated_plan = ""
 
-TOPIC_COLLECTION = {
-    "Bengal Village Life & Nature": [
-        "Endless Green Village Road Tunnel",
-        "A Peaceful Bengal Village Beside a River",
-        "Ancient Banyan Tree Road in Monsoon",
-        "A Fisherman's Journey Through Village Waters",
-        "Golden Paddy Fields Under Dramatic Clouds"
-    ],
-    "India & World Nature": [
-        "Meghalaya Living Root Bridge",
-        "Giant Waterfall Hidden in a Green Forest",
-        "Himalayan Valley Above the Clouds",
-        "Wildlife Migration Across Vast Grasslands",
-        "A Remote Island Surrounded by Turquoise Water"
-    ],
-    "Human Life & Struggle": [
-        "A Farmer Working in a Vast Green Field",
-        "A Fisherman Crossing a Wide River",
-        "Village People Walking Through Heavy Rain",
-        "Mountain Farmers on a Narrow Hill Path",
-        "A Boat Journey Through a Dense Forest"
-    ],
-    "Fantasy Nature": [
-        "The Giant Tree Above the Clouds",
-        "An Endless Natural Green Tunnel",
-        "A Hidden Waterfall Fantasy Valley",
-        "A Giant Natural Bridge Above a Misty Forest",
-        "A Magical Lake Inside an Ancient Forest"
-    ],
-    "Fantasy Architecture & Futuristic Civilizations": [
-        "A Giant Fantasy City Ship Above the Ocean",
-        "A Futuristic Floating Ocean City",
-        "A Waterfall City Built Around Giant Trees",
-        "A Sky City Above the Clouds",
-        "A Forest Integrated Futuristic Civilization"
-    ]
-}
+# =====================================================
+# GEMINI CONNECTION
+# =====================================================
 
-# ==========================================
-# FUNCTIONS
-# ==========================================
+def get_client():
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY", "")
+    except Exception:
+        api_key = ""
 
-def get_new_suggestions():
-    all_topics = []
+    if not api_key:
+        raise ValueError(
+            "GEMINI_API_KEY পাওয়া যায়নি। "
+            "Streamlit Secrets পরীক্ষা করো।"
+        )
 
-    for category, topics in TOPIC_COLLECTION.items():
-        for topic in topics:
-            if topic not in st.session_state.history:
-                all_topics.append((category, topic))
-
-    random.shuffle(all_topics)
-    return all_topics[:10]
+    return genai.Client(api_key=api_key)
 
 
-def get_next_topic():
-    available = []
+def ask_gemini(prompt, image=None):
+    client = get_client()
 
-    for category, topics in TOPIC_COLLECTION.items():
-        for topic in topics:
-            if topic not in st.session_state.history:
-                available.append((category, topic))
+    contents = [prompt]
 
-    if not available:
-        st.session_state.history = []
-        available = [
-            (category, topic)
-            for category, topics in TOPIC_COLLECTION.items()
-            for topic in topics
-        ]
+    if image is not None:
+        contents.append(image)
 
-    return random.choice(available)
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=contents
+    )
+
+    result = response.text
+
+    if not result:
+        raise ValueError(
+            "Gemini কোনো Text Response দেয়নি। আবার চেষ্টা করো।"
+        )
+
+    return result
 
 
-def save_topic(topic):
+# =====================================================
+# TOPIC HISTORY HELPERS
+# =====================================================
+
+def add_history(topic):
     if topic and topic not in st.session_state.history:
         st.session_state.history.append(topic)
 
 
-# ==========================================
+def clean_topic_lines(response):
+    lines = []
+
+    for line in response.splitlines():
+        line = re.sub(r"^\s*[\d\-\*\.\)\s]+", "", line).strip()
+
+        if line and "|" in line:
+            lines.append(line)
+
+    return lines[:10]
+
+
+# =====================================================
+# TOPIC GENERATOR
+# =====================================================
+
+def generate_10_topics():
+    previous = "\n".join(st.session_state.history[-20:])
+
+    prompt = f"""
+{MASTER_PROMPT}
+
+TASK:
+Generate exactly 10 fresh and visually outstanding Reel topics.
+
+Balance these categories:
+Bengal Village Life & Nature,
+India & World Nature,
+Human Life & Struggle,
+Fantasy Nature,
+Fantasy Architecture & Futuristic Civilizations.
+
+Avoid repeating these previous topics:
+{previous}
+
+Rules:
+- Make every topic visually different.
+- Use realistic, cinematic and scroll-stopping ideas.
+- Do not let fantasy dominate all suggestions.
+- Include a suitable category for every topic.
+- Output exactly 10 lines in this format:
+Category | Topic
+Do not write explanations before or after the list.
+"""
+
+    return ask_gemini(prompt)
+
+
+def generate_next_topic():
+    previous = "\n".join(st.session_state.history[-20:])
+
+    prompt = f"""
+{MASTER_PROMPT}
+
+USER COMMAND: NEXT
+
+Choose ONE fresh and outstanding Reel topic.
+Review the previous topics and avoid repetition.
+
+Previous topics:
+{previous}
+
+Rotate categories intelligently.
+Keep Bengal, India, World, Human Life,
+Fantasy Nature and Futuristic Architecture balanced.
+
+Output only one line:
+Category | Topic
+"""
+
+    return ask_gemini(prompt)
+
+
+# =====================================================
+# COMPLETE REEL GENERATOR
+# =====================================================
+
+def generate_reel(topic, image=None, extra_instruction=""):
+
+    prompt = f"""
+{MASTER_PROMPT}
+
+CREATE A COMPLETE CINEMATIC REEL PRODUCTION PLAN.
+
+USER TOPIC:
+{topic}
+
+ADDITIONAL USER INSTRUCTIONS:
+{extra_instruction if extra_instruction else "None"}
+
+IMAGE REFERENCE:
+{"An image has been supplied. Carefully analyze its visible subject, composition, environment, shapes, colours, textures, lighting and visual style. Use it as the primary visual reference. Create a coherent five-scene story inspired by it. Preserve important visual characteristics while developing new cinematic angles and actions." if image is not None else "No reference image supplied."}
+
+MANDATORY OUTPUT:
+
+PART 1: REEL HEADER
+Title, Tropic, Sub-Category, Location, Format,
+Duration, Main Focus, Story Flow and Visual Style.
+Explain the concept in Bengali.
+
+PART 2: GLOBAL VISUAL BIBLE
+Main Subject Lock
+Character Lock
+Location Lock
+Environment Lock
+Colour Lock
+Lighting Lock
+Material & Texture Lock
+Motion Lock
+
+PART 3: FIVE COMPLETE SCENES
+
+For EACH of the five scenes, include every field:
+
+Scene Number and Time Range
+Story Purpose (Bengali)
+Image/Video Prompt (English, detailed and self-contained)
+Camera
+Camera Movement
+Subject Movement
+Environment Movement
+Sound Effects
+Ambient Sound
+Transition
+Planned Exit State
+
+Do not shorten any scene.
+Do not combine fields.
+Each Image/Video Prompt must be ready for Flow AI.
+
+Story progression:
+Scene 1: Discovery Hook.
+Scene 2: Grand Reveal.
+Scene 3: Exploration or Activity.
+Scene 4: Cinematic Highlight.
+Scene 5: Ultimate Reveal and Ending.
+
+PART 4: CONTINUITY LOCKS
+Explain character, location, environment, colour,
+lighting, weather, architecture and motion continuity.
+
+PART 5: COMPLETE AUDIO FLOW
+Scene-wise sound design, ambient sound, music mood,
+intensity progression and ending.
+
+PART 6: FINAL QUALITY AUDIT
+Check all five scenes, visual continuity, realism,
+geography, motion, 9:16 and cinematic impact.
+
+PART 7: FACEBOOK PUBLISHING PACKAGE
+Create one engaging Bengali caption and relevant hashtags.
+
+IMPORTANT:
+Bengali explanations.
+English production prompts.
+Exactly five scenes, approximately eight seconds each.
+Do not omit any required section.
+Do not claim that actual videos or images have been generated.
+"""
+
+    return ask_gemini(prompt, image=image)
+
+
+# =====================================================
 # APP HEADER
-# ==========================================
+# =====================================================
 
 st.title("🎬 Bengal AI Content Creator")
 st.subheader("Your Personal AI Reel Director")
 
 st.write(
     "তোমার Bengal + India + World Nature & Human Life "
-    "Reel Project-এর জন্য একটি Content Creation Studio।"
+    "Reel Project-এর AI Creative Studio।"
+)
+
+st.caption(
+    "Gemini AI Powered | Master Creative System V2.1 | Version 3.0"
 )
 
 st.divider()
 
-# ==========================================
+# =====================================================
+# SIDEBAR
+# =====================================================
+
+with st.sidebar:
+    st.header("📚 Project History")
+
+    st.caption("এই Session-এর Topic History")
+
+    if st.session_state.history:
+        for i, item in enumerate(
+            reversed(st.session_state.history[-20:]),
+            start=1
+        ):
+            st.write(f"{i}. {item}")
+    else:
+        st.info("এখনও কোনো Topic History নেই।")
+
+    if st.button("Clear Session History"):
+        st.session_state.history = []
+        st.rerun()
+
+    st.divider()
+
+    st.caption("Gemini API Free Tier-এর সীমা প্রযোজ্য।")
+
+
+# =====================================================
 # TOPIC SELECTION
-# ==========================================
+# =====================================================
 
 st.header("1. Choose Your Topic")
 
 mode = st.radio(
-    "কীভাবে Topic নির্বাচন করবে?",
+    "তুমি কীভাবে Reel তৈরি করতে চাও?",
     [
         "Write My Own Topic",
         "Get 10 Topic Ideas",
         "NEXT - New Topic",
         "Upload Reference Image"
-    ]
+    ],
+    horizontal=False
 )
 
-topic = ""
+uploaded_image = None
+extra_instruction = ""
+
+# -----------------------------------------------------
+# MODE 1: OWN TOPIC
+# -----------------------------------------------------
 
 if mode == "Write My Own Topic":
 
-    topic = st.text_input(
+    topic_input = st.text_input(
         "তোমার Reel Topic লিখো",
         placeholder="Example: Endless Green Village Road Tunnel"
     )
 
-    if st.button("Use This Topic", type="primary"):
-        if topic.strip():
-            st.session_state.selected_topic = topic.strip()
-            save_topic(topic.strip())
-            st.success("Topic Selected Successfully!")
-        else:
-            st.warning("আগে একটি Topic লিখো।")
+    extra_instruction = st.text_area(
+        "অতিরিক্ত নির্দেশ (Optional)",
+        placeholder="Example: Thick rounded green tree tunnel..."
+    )
 
+    if st.button("Select My Topic"):
+        if topic_input.strip():
+            st.session_state.selected_topic = topic_input.strip()
+            add_history(topic_input.strip())
+            st.success("Topic Selected!")
+        else:
+            st.warning("আগে একটি Topic লেখো।")
+
+
+# -----------------------------------------------------
+# MODE 2: 10 AI TOPICS
+# -----------------------------------------------------
 
 elif mode == "Get 10 Topic Ideas":
 
-    if st.button("Generate 10 Topic Ideas", type="primary"):
-        st.session_state.suggestions = get_new_suggestions()
+    if st.button("✨ Generate 10 Fresh Topics", type="primary"):
+
+        with st.spinner("Gemini AI নতুন Topic তৈরি করছে..."):
+            try:
+                result = generate_10_topics()
+                st.session_state.suggestions = clean_topic_lines(result)
+
+                if not st.session_state.suggestions:
+                    st.session_state.suggestions = [
+                        result
+                    ]
+
+            except Exception as e:
+                st.error(f"AI Error: {e}")
 
     if st.session_state.suggestions:
-        options = [
-            f"{category} — {name}"
-            for category, name in st.session_state.suggestions
-        ]
 
         selected = st.selectbox(
-            "পছন্দের Topic নির্বাচন করো",
-            options
+            "১০টি Topic থেকে একটি নির্বাচন করো",
+            st.session_state.suggestions
         )
 
-        if st.button("Select This Topic"):
-            selected_name = selected.split(" — ", 1)[1]
-            st.session_state.selected_topic = selected_name
-            save_topic(selected_name)
-            st.success(f"Selected: {selected_name}")
+        if st.button("Use Selected Topic"):
+            topic_name = selected.split("|", 1)[-1].strip()
+            st.session_state.selected_topic = topic_name
+            add_history(topic_name)
+            st.success("Topic Selected!")
 
+
+# -----------------------------------------------------
+# MODE 3: NEXT
+# -----------------------------------------------------
 
 elif mode == "NEXT - New Topic":
 
-    if st.button("NEXT - Give Me a New Topic", type="primary"):
-        category, new_topic = get_next_topic()
-        st.session_state.selected_topic = new_topic
-        save_topic(new_topic)
+    if st.button("➡️ NEXT - Generate New Topic", type="primary"):
 
-        st.success(f"Category: {category}")
-        st.subheader(new_topic)
+        with st.spinner("Gemini নতুন Topic খুঁজছে..."):
+            try:
+                result = generate_next_topic()
+                st.session_state.suggestions = [result.strip()]
 
+                topic_name = result.split("|", 1)[-1].strip()
+
+                st.session_state.selected_topic = topic_name
+                add_history(topic_name)
+
+                st.success("নতুন Topic তৈরি হয়েছে!")
+                st.subheader(topic_name)
+
+            except Exception as e:
+                st.error(f"AI Error: {e}")
+
+
+# -----------------------------------------------------
+# MODE 4: IMAGE REFERENCE
+# -----------------------------------------------------
 
 elif mode == "Upload Reference Image":
 
-    uploaded_image = st.file_uploader(
-        "Reference Image Upload করো",
+    uploaded_file = st.file_uploader(
+        "তোমার Reference Image Upload করো",
         type=["png", "jpg", "jpeg", "webp"]
     )
 
-    if uploaded_image:
-        st.image(
-            uploaded_image,
-            caption="Your Reference Image",
-            use_container_width=True
-        )
+    if uploaded_file is not None:
 
-        st.info(
-            "Image input গ্রহণ করা হয়েছে। "
-            "পরবর্তী ধাপে AI Vision যুক্ত হলে ছবির "
-            "বিষয় বিশ্লেষণ করে Reel তৈরি করা যাবে।"
-        )
+        try:
+            uploaded_image = Image.open(
+                BytesIO(uploaded_file.getvalue())
+            ).convert("RGB")
 
-        image_topic = st.text_input(
-            "ছবি সম্পর্কে কিছু বলতে চাইলে লিখো (Optional)"
-        )
-
-        if st.button("Use Reference Image", type="primary"):
-            st.session_state.selected_topic = (
-                image_topic.strip()
-                if image_topic.strip()
-                else "Image Reference Based Reel"
+            st.image(
+                uploaded_image,
+                caption="Uploaded Reference Image",
+                use_container_width=True
             )
-            st.success("Reference Image Selected!")
+
+            extra_instruction = st.text_area(
+                "ছবিটি সম্পর্কে অতিরিক্ত নির্দেশ (Optional)",
+                placeholder="Example: Keep the thick rounded green tunnel..."
+            )
+
+            if st.button("Use This Reference Image"):
+                st.session_state.selected_topic = (
+                    "Reference Image Based Cinematic Reel"
+                )
+                st.success("Image Reference Selected!")
+
+        except Exception as e:
+            st.error(f"Image Error: {e}")
 
 
-# ==========================================
+# =====================================================
 # SELECTED TOPIC
-# ==========================================
+# =====================================================
 
 st.divider()
 
-st.header("2. Your Selected Topic")
+st.header("2. Selected Topic")
 
 if st.session_state.selected_topic:
     st.success(st.session_state.selected_topic)
-
-    st.write(
-        "এই Topic ব্যবহার করে পরবর্তী ধাপে "
-        "সম্পূর্ণ 5 Scene Reel Plan তৈরি করা হবে।"
-    )
-
 else:
-    st.info("এখনও কোনো Topic নির্বাচন করা হয়নি।")
+    st.info("একটি Topic নির্বাচন করো অথবা Image Upload করো।")
 
 
-# ==========================================
-# HISTORY
-# ==========================================
+# =====================================================
+# GENERATE REEL BUTTON
+# =====================================================
 
 st.divider()
 
-st.header("3. Recent Topic History")
+st.header("3. Generate Complete Reel Plan")
 
-if st.session_state.history:
-    for number, old_topic in enumerate(
-        reversed(st.session_state.history[-10:]),
-        start=1
-    ):
-        st.write(f"{number}. {old_topic}")
-else:
-    st.caption("এখনও কোনো Topic History নেই।")
+if st.button(
+    "🎬 CREATE MY COMPLETE 5-SCENE REEL",
+    type="primary",
+    use_container_width=True
+):
+
+    current_topic = st.session_state.selected_topic
+
+    if uploaded_image is not None:
+        current_topic = current_topic or "Image Reference Based Reel"
+
+    if not current_topic:
+        st.warning("আগে একটি Topic নির্বাচন করো অথবা Image Upload করো।")
+
+    else:
+
+        with st.spinner(
+            "Gemini AI তোমার Story এবং পাঁচটি Scene তৈরি করছে..."
+        ):
+
+            try:
+                result = generate_reel(
+                    topic=current_topic,
+                    image=uploaded_image,
+                    extra_instruction=extra_instruction
+                )
+
+                st.session_state.generated_plan = result
+
+                st.success("তোমার Reel Production Plan তৈরি হয়েছে!")
+
+            except Exception as e:
+                st.error(
+                    "Reel তৈরি করা যায়নি। "
+                    "API Key, Model বা Free Quota পরীক্ষা করো।"
+                )
+                st.exception(e)
 
 
-# ==========================================
+# =====================================================
+# SHOW COMPLETE OUTPUT
+# =====================================================
+
+if st.session_state.generated_plan:
+
+    st.divider()
+
+    st.header("🎥 Your Complete Reel Production Plan")
+
+    st.markdown(st.session_state.generated_plan)
+
+    st.download_button(
+        label="⬇️ Download Complete Reel Plan",
+        data=st.session_state.generated_plan,
+        file_name="bengal_reel_production_plan.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+
+    if st.button("Generate Another Reel"):
+        st.session_state.generated_plan = ""
+        st.session_state.selected_topic = ""
+        st.rerun()
+
+
+# =====================================================
 # MASTER PROMPT INFORMATION
-# ==========================================
+# =====================================================
 
 st.divider()
 
-with st.expander("Master Prompt V2.1 - Project Rules"):
+with st.expander("Master Creative Instructions V2.1"):
+
     st.write(
-        "Master Prompt-এর Creative Rules এই অ্যাপের "
-        "ভিতরে সংরক্ষিত আছে।"
+        "এই Creative System অ্যাপের মধ্যে স্থায়ীভাবে রাখা হয়েছে।"
     )
+
     st.code(MASTER_PROMPT, language="text")
 
 
-# ==========================================
+# =====================================================
 # FOOTER
-# ==========================================
+# =====================================================
 
 st.divider()
 
 st.caption(
-    "Bengal AI Content Creator | Version 2.0"
+    "Bengal AI Content Creator | Version 3.0 | Gemini AI"
 )
