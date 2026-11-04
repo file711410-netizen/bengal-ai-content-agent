@@ -2,6 +2,7 @@
 import streamlit as st
 import random
 import re
+import hashlib
 from PIL import Image
 from google import genai
 
@@ -537,7 +538,9 @@ defaults = {
     "reel_history": [],
     "generated_reel": "",
     "last_topic": "",
-    "topic_mode": "নিজে Topic লিখব"
+    "topic_mode": "নিজে Topic লিখব",
+    "request_in_flight": False,
+    "last_request_fingerprint": ""
 }
 
 for key, value in defaults.items():
@@ -606,111 +609,44 @@ def get_api_key():
 
 
 # =========================================================
-# 7. FIND AVAILABLE GEMINI FLASH MODEL
+# 7. GEMINI GENERATION — one fixed model, one explicit request
 # =========================================================
 
-def find_flash_model(client):
-
-    try:
-        available_models = list(client.models.list())
-    except Exception as error:
-        raise RuntimeError(
-            "Google Gemini API থেকে Model তালিকা পাওয়া যায়নি.\n\n"
-            + str(error)
-        )
-
-    candidates = []
-
-    for model in available_models:
-
-        name = getattr(model, "name", None)
-
-        if not name:
-            continue
-
-        name = name.replace("models/", "")
-
-        if "flash" not in name.lower():
-            continue
-
-        if "embedding" in name.lower():
-            continue
-
-        if "tts" in name.lower():
-            continue
-
-        if "image" in name.lower():
-            continue
-
-        actions = getattr(model, "supported_actions", None)
-
-        if actions:
-            action_text = " ".join(str(x) for x in actions).lower()
-
-            if "generatecontent" not in action_text:
-                continue
-
-        candidates.append(name)
-
-    if not candidates:
-        raise RuntimeError(
-            "তোমার API Key দিয়ে কোনো উপলব্ধ Flash Model পাওয়া যায়নি। "
-            "Google AI Studio-তে API Key ও Model access পরীক্ষা করো।"
-        )
-
-    # Use one model only to avoid repeated waiting.
-    # Prefer a newer numbered Gemini Flash model.
-    def model_rank(name):
-        match = re.search(r"gemini-(\d+)(?:\.(\d+))?", name.lower())
-
-        if match:
-            major = int(match.group(1))
-            minor = int(match.group(2) or 0)
-            return (major, minor)
-
-        return (0, 0)
-
-    candidates.sort(key=model_rank, reverse=True)
-
-    return candidates[0]
+MODEL_NAME = "gemini-3.8-flash"
 
 
-# =========================================================
-# 8. GEMINI GENERATION
-# =========================================================
+def quota_message(error):
+    raw = str(error)
+    match = re.search(r"retry in\s+(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", raw, re.I)
+    if match:
+        total = int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + int(float(match.group(3) or 0))
+        parts = []
+        if total >= 3600:
+            parts.append(f"{total // 3600} ঘণ্টা")
+        if total % 3600 >= 60:
+            parts.append(f"{(total % 3600) // 60} মিনিট")
+        if total % 60 or not parts:
+            parts.append(f"{total % 60} সেকেন্ড")
+        return "Gemini-র Free Tier quota আপাতত শেষ। আনুমানিক " + " ".join(parts) + " পরে আবার চেষ্টা করো।"
+    return "Gemini-র Free Tier quota আপাতত শেষ বা সাময়িক সীমায় পৌঁছেছে। Google-এর quota reset হওয়া পর্যন্ত অপেক্ষা করে আবার চেষ্টা করো।"
+
 
 def ask_gemini(prompt, uploaded_image=None):
-
-    api_key = get_api_key()
-    client = get_gemini_client(api_key)
-
-    model_name = find_flash_model(client)
-
+    client = genai.Client(api_key=get_api_key())
     contents = [prompt]
-
     if uploaded_image is not None:
         contents.append(uploaded_image)
-
     try:
-        response = client.models.generate_content(
-            model=model_name,
-            contents=contents
-        )
-
+        response = client.models.generate_content(model=MODEL_NAME, contents=contents)
         result = response.text
-
         if not result or not result.strip():
-            raise RuntimeError(
-                "Gemini কোনো Text উত্তর দেয়নি। আবার চেষ্টা করো।"
-            )
-
+            raise RuntimeError("Gemini কোনো লেখা উত্তর দেয়নি। আবার চেষ্টা করো।")
         return result
-
     except Exception as error:
-        raise RuntimeError(
-            f"ব্যবহৃত Model: {model_name}\n\n"
-            f"Google Gemini API Error:\n{str(error)}"
-        )
+        message = str(error)
+        if "429" in message or "RESOURCE_EXHAUSTED" in message or "quota" in message.lower():
+            raise RuntimeError(quota_message(error)) from None
+        raise RuntimeError("Gemini-তে অনুরোধটি সম্পন্ন হয়নি। ইন্টারনেট সংযোগ বা Google AI Studio-র সেবা পরীক্ষা করে কিছুক্ষণ পর আবার চেষ্টা করো।") from None
 
 
 # =========================================================
@@ -920,7 +856,8 @@ st.subheader("3️⃣ সম্পূর্ণ Reel Prompt তৈরি কর�
 if st.button(
     "🚀 GENERATE COMPLETE REEL",
     type="primary",
-    use_container_width=True
+    use_container_width=True,
+    disabled=st.session_state.request_in_flight
 ):
 
     if not topic_input or not topic_input.strip():
@@ -928,48 +865,36 @@ if st.button(
 
     else:
 
-        with st.spinner(
-            "Gemini-তে Reel তৈরি হচ্ছে। "
-            "Model ও API-র গতির উপর সময় নির্ভর করবে..."
-        ):
+        prompt = build_reel_request(topic=topic_input, extra_instruction=extra_instruction, image_present=reference_image is not None)
+        image_bytes = reference_image.tobytes() if reference_image is not None else b""
+        fingerprint = hashlib.sha256(prompt.encode("utf-8") + image_bytes).hexdigest()
+        if fingerprint == st.session_state.last_request_fingerprint:
+            st.info("এই একই Topic ও নির্দেশনার Reel ইতিমধ্যে তৈরি হয়েছে। নতুন অনুরোধ করতে Topic বা নির্দেশনা বদলাও।")
+        elif st.session_state.request_in_flight:
+            st.info("অনুরোধটি ইতিমধ্যে চলছে। একটু অপেক্ষা করো।")
+        else:
+            st.session_state.request_in_flight = True
+            st.session_state.last_request_fingerprint = fingerprint
+            with st.spinner("Gemini-তে একটি Reel তৈরি হচ্ছে..."):
+                try:
 
-            try:
-
-                prompt = build_reel_request(
-                    topic=topic_input,
-                    extra_instruction=extra_instruction,
-                    image_present=reference_image is not None
-                )
-
-                result = ask_gemini(
+                    result = ask_gemini(
                     prompt=prompt,
                     uploaded_image=reference_image
                 )
 
-                st.session_state.generated_reel = result
-                st.session_state.last_topic = topic_input
+                    st.session_state.generated_reel = result
+                    st.session_state.last_topic = topic_input
 
-                if topic_input not in st.session_state.reel_history:
-                    st.session_state.reel_history.append(topic_input)
-
-                st.success("সম্পূর্ণ Reel Prompt তৈরি হয়েছে!")
-
-            except Exception as error:
-
-                st.session_state.generated_reel = ""
-
-                st.error("Reel তৈরি করা যায়নি।")
-
-                st.warning(
-                    "নিচে আসল Error দেওয়া হয়েছে। "
-                    "এটি দেখে সমস্যার কারণ বোঝা যাবে।"
-                )
-
-                with st.expander(
-                    "🔍 আসল Error Details",
-                    expanded=True
-                ):
-                    st.exception(error)
+                    if topic_input not in st.session_state.reel_history:
+                        st.session_state.reel_history.append(topic_input)
+                    st.success("সম্পূর্ণ Reel Prompt তৈরি হয়েছে!")
+                except Exception as error:
+                    st.session_state.generated_reel = ""
+                    st.session_state.last_request_fingerprint = ""
+                    st.error(str(error))
+                finally:
+                    st.session_state.request_in_flight = False
 
 
 # =========================================================
